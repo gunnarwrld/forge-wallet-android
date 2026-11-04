@@ -2,6 +2,8 @@ package dev.ledgerforge.wallet.core.database
 
 import androidx.room.Dao
 import androidx.room.Insert
+import androidx.room.Query
+import androidx.room.Transaction
 
 @Dao
 interface OutboxDao {
@@ -9,29 +11,64 @@ interface OutboxDao {
     suspend fun insert(row: OutboxEntity): Long
 
     /** Null when the account isn't known. */
-    suspend fun availableMinor(accountId: String): Long? = TODO()
+    @Query(
+        """
+        SELECT a.balance_minor - COALESCE(
+                   (SELECT SUM(o.amount_minor) FROM outbox o
+                     WHERE o.source_account_id = a.id AND o.status IN ('PENDING', 'SETTLED')),
+                   0
+               )
+          FROM accounts a
+         WHERE a.id = :accountId
+        """,
+    )
+    suspend fun availableMinor(accountId: String): Long?
 
     /**
      * Queues [row] only if the available balance covers it. The check and the insert are one
      * transaction, so two sends at once can't both spend the same money.
      */
-    suspend fun enqueueIfFunded(row: OutboxEntity): Boolean = TODO()
+    @Transaction
+    suspend fun enqueueIfFunded(row: OutboxEntity): Boolean {
+        val available = availableMinor(row.sourceAccountId) ?: return false
+        if (available < row.amountMinor) return false
+        insert(row)
+        return true
+    }
 
     /** The oldest pending row, skipping sources whose head row is waiting on a retry. */
-    suspend fun nextPending(blockedSources: Collection<String> = emptyList()): OutboxEntity? = TODO()
+    @Query(
+        """
+        SELECT * FROM outbox
+         WHERE status = 'PENDING' AND source_account_id NOT IN (:blockedSources)
+         ORDER BY seq
+         LIMIT 1
+        """,
+    )
+    suspend fun nextPending(blockedSources: Collection<String> = emptyList()): OutboxEntity?
 
+    @Query("UPDATE outbox SET status = 'SETTLED', transfer_id = :transferId WHERE seq = :seq AND status = 'PENDING'")
     suspend fun markSettled(
         seq: Long,
         transferId: String,
-    ): Unit = TODO()
+    )
 
+    @Query(
+        """
+        UPDATE outbox
+           SET status = 'FAILED', failure_http_status = :httpStatus, failure_detail = :detail
+         WHERE seq = :seq AND status = 'PENDING'
+        """,
+    )
     suspend fun markFailed(
         seq: Long,
         httpStatus: Int,
         detail: String?,
-    ): Unit = TODO()
+    )
 
-    suspend fun settledSeqs(accountId: String): List<Long> = TODO()
+    @Query("SELECT seq FROM outbox WHERE source_account_id = :accountId AND status = 'SETTLED'")
+    suspend fun settledSeqs(accountId: String): List<Long>
 
-    suspend fun get(seq: Long): OutboxEntity? = TODO()
+    @Query("SELECT * FROM outbox WHERE seq = :seq")
+    suspend fun get(seq: Long): OutboxEntity?
 }
