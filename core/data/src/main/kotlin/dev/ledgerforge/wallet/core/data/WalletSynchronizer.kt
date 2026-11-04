@@ -32,22 +32,23 @@ class WalletSynchronizer
         private val syncDao: SyncDao,
     ) {
         /**
-         * Push goes first so a row whose response was lost gets its receipt before its debit
-         * shows up in a pulled balance. A failed push doesn't stop the pull: fresh balances are
-         * still useful, and at worst a debit counts twice until the replay lands.
+         * Push goes first, so a row whose response was lost gets its receipt before its debit can
+         * show up in a pulled balance. A wallet with a row still unanswered isn't pulled at all:
+         * the debit may already be on the ledger, and that balance minus the pending row would
+         * count it twice.
          */
         suspend fun sync(): SyncResult {
-            val pushed = push()
-            val pulled = pull()
-            return if (pushed && pulled) SyncResult.Done else SyncResult.RetryLater
+            val unanswered = push()
+            val pulled = pull(accounts.ids() - unanswered)
+            return if (unanswered.isEmpty() && pulled) SyncResult.Done else SyncResult.RetryLater
         }
 
-        /** Returns false if any row is still waiting on a retry. */
-        private suspend fun push(): Boolean {
-            val blockedSources = mutableSetOf<String>()
+        /** Returns the wallets with a row still waiting on an answer. */
+        private suspend fun push(): Set<String> {
+            val unanswered = mutableSetOf<String>()
             while (true) {
                 // One row at a time, so a transfer queued during this loop goes out in this run.
-                val row = outbox.nextPending(blockedSources) ?: break
+                val row = outbox.nextPending(unanswered) ?: break
                 when (val outcome = ledger.submitTransfer(row.idempotencyKey, row.toRequest())) {
                     is TransferOutcome.Settled -> {
                         outbox.markSettled(row.seq, outcome.transferId)
@@ -59,11 +60,11 @@ class WalletSynchronizer
 
                     TransferOutcome.RetryLater -> {
                         // Later rows from this wallet wait, so its transfers post in the order they were sent.
-                        blockedSources += row.sourceAccountId
+                        unanswered += row.sourceAccountId
                     }
                 }
             }
-            return blockedSources.isEmpty()
+            return unanswered
         }
 
         private suspend fun reject(
@@ -78,7 +79,7 @@ class WalletSynchronizer
         }
 
         /** Returns false if any wallet couldn't be refreshed. A failure doesn't stop the others. */
-        private suspend fun pull(): Boolean = accounts.ids().map { pull(it) }.all { it }
+        private suspend fun pull(accountIds: List<String>): Boolean = accountIds.map { pull(it) }.all { it }
 
         private suspend fun pull(accountId: String): Boolean {
             // Read these before fetching: each got its 201 before the balance below was read, so

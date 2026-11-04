@@ -291,7 +291,11 @@ class WalletSynchronizerTest {
             val wallet = harness.wallet(alice)
             assertEquals(10_000, wallet.postedBalance.minor, "not refreshed until the transfer has an answer")
             assertEquals(8_750, wallet.availableBalance.minor, "the debit counts once")
-            val debits = harness.repository.observeActivity().first().filter { it.amount.minor == -1_250L }
+            val debits =
+                harness.repository
+                    .observeActivity()
+                    .first()
+                    .filter { it.amount.minor == -1_250L }
             assertEquals(listOf<ActivityStatus>(ActivityStatus.Pending), debits.map { it.status })
 
             assertEquals(SyncResult.Done, harness.newSynchronizer().sync())
