@@ -28,6 +28,7 @@ class AndroidLibraryConventionPlugin : Plugin<Project> {
             dependencies {
                 add("testImplementation", libs.library("kotlin-test-junit"))
                 add("testImplementation", libs.library("junit4"))
+                add("testImplementation", project(":core:testing"))
             }
         }
     }
