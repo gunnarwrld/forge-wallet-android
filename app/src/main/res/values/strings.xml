@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Forge Wallet</string>
+    <string name="home_placeholder">Your wallets appear here once the app is connected to Ledger Forge.</string>
+</resources>
