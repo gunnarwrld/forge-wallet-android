@@ -75,7 +75,11 @@ class OfflineFirstWalletRepositoryTest {
 
             harness.repository.queueTransfer(alice, bob, Money(400, sek))
 
-            val item = harness.repository.observeActivity().first().single()
+            val item =
+                harness.repository
+                    .observeActivity()
+                    .first()
+                    .single()
             assertEquals(Money(-400, sek), item.amount)
             assertEquals(ActivityStatus.Pending, item.status)
             assertEquals("alice", item.accountName)

@@ -22,6 +22,7 @@ import java.util.UUID
  *
  * Unlike the real thing, it can also fail the way networks fail. See [Fault].
  */
+@Suppress("TooManyFunctions") // A stand-in for a whole HTTP API, plus the controls tests need.
 class FakeLedger : Dispatcher() {
     enum class Fault {
         /** The connection dies before the ledger does anything. */

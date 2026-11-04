@@ -45,19 +45,11 @@ class ExactlyOnceChaosTest {
                 assertEquals(QueueResult.Queued, harness.repository.queueTransfer(source, destination, Money(amount, sek)))
                 queuedBySource.getValue(source) += amount
 
-                when (random.nextInt(6)) {
-                    0, 1 -> {
-                        synchronizer.sync()
-                    }
-
-                    2 -> {
-                        harness.restartProcess()
-                        synchronizer = harness.newSynchronizer()
-                    }
-
-                    else -> {
-                        Unit
-                    }
+                val action = random.nextInt(6)
+                if (action < 2) synchronizer.sync()
+                if (action == 2) {
+                    harness.restartProcess()
+                    synchronizer = harness.newSynchronizer()
                 }
             }
 
@@ -68,8 +60,22 @@ class ExactlyOnceChaosTest {
 
             val ledger = harness.ledger
             assertEquals(sends, ledger.transfers.size, "lost or duplicated transfers")
-            assertEquals(sends, ledger.transfers.map { it.idempotencyKey }.toSet().size, "a key posted twice")
-            assertEquals(sends, ledger.attempts.map { it.idempotencyKey }.toSet().size, "a retry used a new key")
+            assertEquals(
+                sends,
+                ledger.transfers
+                    .map { it.idempotencyKey }
+                    .toSet()
+                    .size,
+                "a key posted twice",
+            )
+            assertEquals(
+                sends,
+                ledger.attempts
+                    .map { it.idempotencyKey }
+                    .toSet()
+                    .size,
+                "a retry used a new key",
+            )
             assertTrue(ledger.attempts.size > sends, "the faults never fired, so this proved nothing")
 
             wallets.forEach { wallet: AccountId ->

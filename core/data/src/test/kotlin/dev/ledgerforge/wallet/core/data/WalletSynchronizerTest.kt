@@ -57,7 +57,11 @@ class WalletSynchronizerTest {
         assertEquals(onServer, wallet.availableBalance.minor, "available balance of ${account.value}")
     }
 
-    private suspend fun statuses() = harness.repository.observeActivity().first().map { it.status }
+    private suspend fun statuses() =
+        harness.repository
+            .observeActivity()
+            .first()
+            .map { it.status }
 
     @Test
     fun `a queued transfer settles once and the balances converge`() =
