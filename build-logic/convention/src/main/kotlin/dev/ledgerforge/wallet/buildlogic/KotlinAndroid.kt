@@ -4,6 +4,7 @@ import com.android.build.api.dsl.CommonExtension
 import org.gradle.api.JavaVersion
 import org.gradle.api.Project
 import org.gradle.api.plugins.JavaPluginExtension
+import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.withType
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
@@ -18,6 +19,15 @@ internal fun Project.configureKotlinAndroid(commonExtension: CommonExtension) {
         compileOptions.targetCompatibility = JavaVersion.VERSION_17
         // Robolectric tests read real resources, themes and the merged manifest.
         testOptions.unitTests.isIncludeAndroidResources = true
+    }
+    tasks.withType<Test>().configureEach {
+        // On SDK 36+, Robolectric sets up ApplicationSharedMemory by writing a raw
+        // FileDescriptor through jdk.internal.access.SharedSecrets. JDK 17+ blocks that
+        // unless the package is exported and java.io is opened to the test classpath.
+        jvmArgs(
+            "--add-exports=java.base/jdk.internal.access=ALL-UNNAMED",
+            "--add-opens=java.base/java.io=ALL-UNNAMED",
+        )
     }
     configureKotlinCompilation()
 }
