@@ -32,10 +32,20 @@ class MoneyFormatterTest {
     @Test
     fun `shows exactly the currency's number of decimals`() {
         assertEquals("¥1,234", format(Money(1_234, CurrencyCode.of("JPY")), "en-US"))
-        // The JDK prints "KWD1.234"; Android's ICU applies CLDR currency spacing and prints
-        // "KWD 1.234". Pin the three decimals, not the platform's spacing.
-        assertEquals("KWD1.234", format(Money(1_234, CurrencyCode.of("KWD")), "en-US").replace(" ", ""))
+        assertEquals("KWD 1.234", format(Money(1_234, CurrencyCode.of("KWD")), "en-US"))
         assertEquals("$0.05", format(Money(5, usd), "en-US"))
+    }
+
+    @Test
+    fun `keeps a currency code apart from the digits`() {
+        // java.text doesn't apply CLDR's currency spacing, on the JDK or on Android 17.
+        assertEquals("SEK 968.50", format(Money(96_850, sek), "en-US"))
+        assertEquals("-SEK 7.00", format(Money(-700, sek), "en-US"))
+    }
+
+    @Test
+    fun `uses a no-break space there, so an amount never wraps`() {
+        assertEquals("SEK\u00A0968.50", MoneyFormatter.format(Money(96_850, sek), Locale.US))
     }
 
     @Test

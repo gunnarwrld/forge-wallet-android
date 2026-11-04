@@ -279,21 +279,50 @@ class WalletSynchronizerTest {
         }
 
     @Test
-    fun `when a push keeps failing but a pull succeeds the balance under-reports, never over-reports`() =
+    fun `while a transfer has no answer its debit counts once, in the balance and the activity list`() =
         runBlocking {
             send(1_250)
-            // The first attempt commits and loses the response. The retry then fails, but reads work.
-            faults(Fault.DropResponse, Fault.ServerError)
-            harness.newSynchronizer().sync()
-            harness.newSynchronizer().sync()
+            // The ledger commits and the response is lost, so the debit is already on the server.
+            faults(Fault.DropResponse)
 
-            val wallet = harness.wallet(alice)
+            assertEquals(SyncResult.RetryLater, harness.newSynchronizer().sync())
+
             assertEquals(8_750, ledger.balanceOf("alice"))
-            assertEquals(8_750, wallet.postedBalance.minor)
-            assertEquals(7_500, wallet.availableBalance.minor, "the debit counts twice for now: safe direction")
+            val wallet = harness.wallet(alice)
+            assertEquals(10_000, wallet.postedBalance.minor, "not refreshed until the transfer has an answer")
+            assertEquals(8_750, wallet.availableBalance.minor, "the debit counts once")
+            val debits = harness.repository.observeActivity().first().filter { it.amount.minor == -1_250L }
+            assertEquals(listOf<ActivityStatus>(ActivityStatus.Pending), debits.map { it.status })
 
             assertEquals(SyncResult.Done, harness.newSynchronizer().sync())
             assertConverged(alice)
+        }
+
+    @Test
+    fun `the debit counts once however many retries fail`() =
+        runBlocking {
+            send(1_250)
+            faults(Fault.DropResponse, Fault.ServerError, Fault.DropRequest, Fault.CaptivePortal)
+
+            repeat(4) {
+                assertEquals(SyncResult.RetryLater, harness.newSynchronizer().sync())
+                assertEquals(8_750, harness.wallet(alice).availableBalance.minor)
+            }
+
+            assertEquals(SyncResult.Done, harness.newSynchronizer().sync())
+            assertConverged(alice)
+        }
+
+    @Test
+    fun `other wallets still refresh while one waits on an answer`() =
+        runBlocking {
+            send(1_250)
+            faults(Fault.DropResponse)
+
+            harness.newSynchronizer().sync()
+
+            assertConverged(bob)
+            assertEquals(1_250, harness.wallet(bob).postedBalance.minor)
         }
 
     @Test

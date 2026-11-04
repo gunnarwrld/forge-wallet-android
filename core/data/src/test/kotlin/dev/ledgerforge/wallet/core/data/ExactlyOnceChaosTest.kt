@@ -37,6 +37,7 @@ class ExactlyOnceChaosTest {
             val faults = Random(SEED + 1)
             harness.ledger.transferFaults = { if (faults.nextInt(100) < FAULT_PERCENT) Fault.entries.random(faults) else null }
 
+            val ledger = harness.ledger
             val queuedBySource = wallets.associateWith { mutableListOf<Long>() }
             var synchronizer = harness.newSynchronizer()
             repeat(sends) {
@@ -47,6 +48,10 @@ class ExactlyOnceChaosTest {
 
                 val action = random.nextInt(6)
                 if (action < 2) synchronizer.sync()
+                wallets.forEach { wallet ->
+                    val available = harness.wallet(wallet).availableBalance.minor
+                    assertTrue(available <= ledger.balanceOf(wallet.value), "${wallet.value} could spend money it doesn't have")
+                }
                 if (action == 2) {
                     harness.restartProcess()
                     synchronizer = harness.newSynchronizer()
@@ -58,7 +63,6 @@ class ExactlyOnceChaosTest {
                 assertTrue(++runs < 2_000, "the outbox never drained")
             }
 
-            val ledger = harness.ledger
             assertEquals(sends, ledger.transfers.size, "lost or duplicated transfers")
             assertEquals(
                 sends,
