@@ -30,7 +30,7 @@ Change seven things:
 | Insufficient funds returns 422 | The exception rolls back the whole transaction, idempotency row included. | A 422 leaves nothing under the key. It's terminal for that attempt. |
 | Key lifetime (not in the plan) | No TTL, no cleanup job. | A phone offline for weeks still can't double-post. Real PSPs expire keys (Stripe after 24 hours), so the README should state this assumption. |
 | Statement | Newest 500 postings, `referenceId` = `transferId`, no cursor, no idempotency key. | The client only learns `transferId` from the POST response. See "push before pull" below. |
-| Local run | docker compose exposes port 8080. | The emulator reaches it at `10.0.2.2:8080` through a debug-only cleartext network config. |
+| Local run | docker compose exposes port 8080. | The emulator reaches it at `10.0.2.2:8080`, through a debug-only cleartext config and, on API 37, the `ACCESS_LOCAL_NETWORK` permission (see "What building it changed"). |
 
 ## Changes
 
@@ -54,6 +54,7 @@ New order:
 - **Days 3–5:** the payment slice with minimal UI. Room (accounts, statement lines,
   outbox), send use case, outbox worker, `POST /transfers`, settle. Worker tests cover
   timeout then success, a dropped response, 409, 422, and a replay after process death.
+  *(Done, and [verified against the real server](verification.md).)*
 - **Week 2:** home, send and activity screens on the design system, the biometric gate and
   the GIF. The cut line holds, with less risk behind it.
 
@@ -65,13 +66,9 @@ auth once the slice works.
 
 ### 4. Sync rules to add
 
-- **Push before pull.** One unique WorkManager chain drains the outbox first, then pulls
-  the statement. Pending lines are matched to posted lines by `transferId`, and the client
-  only learns it from the POST. If a pull ran first after a crash, the debit would count
-  twice. If a push fails transiently while a pull succeeds, the available balance can
-  under-report until the replay lands. It never over-reports, which is the safe direction
-  for a wallet. An optional backend change is to return the idempotency key on the
-  sender's statement line.
+- **Push before pull.** One unique WorkManager job drains the outbox first, then pulls the
+  statement. If a pull ran first after a crash, the posted debit would arrive while its row was
+  still pending. A wallet with an unanswered row isn't pulled at all, for the same reason.
 - **Terminal only when Ledger Forge says so.** 400, 404, 409 and 422 are terminal only
   when the body is `application/problem+json` from Ledger Forge. Anything else (captive
   portal HTML, a proxy 4xx, an empty body) retries with the same key.
@@ -123,6 +120,21 @@ code, not as empty shells.
   Gradle 9.8.2, Compose BOM 2026.09.00, Room 2.8.5, Hilt 2.60.1, WorkManager 2.12.0,
   OkHttp 5.5.1, Retrofit 3.0.0, Robolectric 4.17, Roborazzi 1.77.0, and the same
   ktlint-gradle (14.2.0), detekt (2.0 alpha) and Kover (0.9.11) as Ledger Forge.
+
+## What building it changed
+
+Four things changed once the slice ran against the real server. The reasoning is in
+[ADR 0001](adr/0001-exactly-once-payments.md).
+
+- **The outbox row is the pending line.** The plan writes a pending statement line and an outbox
+  row together, but a second table could disagree with the first, so there is only the row.
+- **One worker pushes then pulls,** instead of a WorkManager chain, which would stop pulling every
+  wallet while one push retries.
+- **A wallet with an unanswered transfer isn't pulled.** The first version pulled anyway, on the
+  reasoning that under-reporting is safe. On screen, the payment showed up twice.
+- **API 37 needs a permission to reach `10.0.2.2`.** The plan's "point the emulator at
+  `10.0.2.2:8080`" hangs on a target SDK of 37: sockets time out with no error unless the app
+  holds `ACCESS_LOCAL_NETWORK`. Debug builds now ask for it. A public server doesn't need it.
 
 ## Unchanged
 
