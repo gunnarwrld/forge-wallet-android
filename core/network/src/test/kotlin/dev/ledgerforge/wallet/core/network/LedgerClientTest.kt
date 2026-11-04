@@ -300,7 +300,9 @@ class LedgerClientTest {
             .build()
 
     private companion object {
-        const val ALICE = """{"id":"alice","name":"Alice","currencyCode":"SEK","kind":"CUSTOMER_WALLET","balanceMinor":900,"createdAt":"x"}"""
+        const val ALICE =
+            """{"id":"alice","name":"Alice","currencyCode":"SEK","kind":"CUSTOMER_WALLET",""" +
+                """"balanceMinor":900,"createdAt":"2026-11-04T21:11:13.249224Z"}"""
         const val OPENING_LINE =
             """{"journalEntryId":"journal-1","entryType":"OPENING_BALANCE","referenceId":null,"postedAt":"2026-11-04T21:11:13.477475Z",""" +
                 """"side":"CREDIT","amountMinor":1000,"signedAmountMinor":1000,"currencyCode":"SEK"}"""
