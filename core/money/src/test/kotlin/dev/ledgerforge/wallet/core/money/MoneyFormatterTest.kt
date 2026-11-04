@@ -32,7 +32,9 @@ class MoneyFormatterTest {
     @Test
     fun `shows exactly the currency's number of decimals`() {
         assertEquals("¥1,234", format(Money(1_234, CurrencyCode.of("JPY")), "en-US"))
-        assertEquals("KWD 1.234", format(Money(1_234, CurrencyCode.of("KWD")), "en-US"))
+        // The JDK prints "KWD1.234"; Android's ICU applies CLDR currency spacing and prints
+        // "KWD 1.234". Pin the three decimals, not the platform's spacing.
+        assertEquals("KWD1.234", format(Money(1_234, CurrencyCode.of("KWD")), "en-US").replace(" ", ""))
         assertEquals("$0.05", format(Money(5, usd), "en-US"))
     }
 
