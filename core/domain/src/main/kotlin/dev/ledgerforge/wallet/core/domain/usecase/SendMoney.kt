@@ -1,5 +1,6 @@
 package dev.ledgerforge.wallet.core.domain.usecase
 
+import dev.ledgerforge.wallet.core.domain.model.QueueResult
 import dev.ledgerforge.wallet.core.domain.model.SyncRequester
 import dev.ledgerforge.wallet.core.domain.model.Wallet
 import dev.ledgerforge.wallet.core.domain.model.WalletRepository
@@ -25,5 +26,26 @@ class SendMoney
             source: Wallet,
             destination: Wallet,
             amount: Money,
-        ): SendResult = TODO()
+        ): SendResult {
+            val rejection =
+                when {
+                    !amount.isPositive -> SendResult.AmountNotPositive
+                    source.id == destination.id -> SendResult.SameWallet
+                    amount.currency != source.postedBalance.currency -> SendResult.CurrencyMismatch
+                    amount.currency != destination.postedBalance.currency -> SendResult.CurrencyMismatch
+                    else -> null
+                }
+            if (rejection != null) return rejection
+
+            return when (repository.queueTransfer(source.id, destination.id, amount)) {
+                QueueResult.Queued -> {
+                    sync.requestSync()
+                    SendResult.Queued
+                }
+
+                QueueResult.InsufficientFunds -> {
+                    SendResult.InsufficientFunds
+                }
+            }
+        }
     }
