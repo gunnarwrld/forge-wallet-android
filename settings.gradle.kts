@@ -30,3 +30,5 @@ dependencyResolutionManagement {
 rootProject.name = "forge-wallet-android"
 
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
+
+include(":core:money")
