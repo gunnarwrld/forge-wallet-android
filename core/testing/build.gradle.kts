@@ -7,5 +7,6 @@ dependencies {
     api(libs.junit4)
     api(libs.kotlinx.coroutines.test)
     api(libs.okhttp.mockwebserver)
+    api(projects.core.domain)
     implementation(libs.kotlinx.serialization.json)
 }
