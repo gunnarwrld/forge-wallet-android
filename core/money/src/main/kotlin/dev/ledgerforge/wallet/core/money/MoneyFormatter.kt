@@ -17,6 +17,10 @@ object MoneyFormatter {
         format.minimumFractionDigits = money.currency.exponent
         format.maximumFractionDigits = money.currency.exponent
         // BigDecimal keeps every digit; a Double would lose them above 2^53.
-        return format.format(money.toBigDecimal())
+        return format.format(money.toBigDecimal()).replace(LETTER_TOUCHING_DIGIT, NO_BREAK_SPACE)
     }
+
+    // java.text doesn't apply CLDR's currency spacing, so "SEK968.50" needs its space added.
+    private val LETTER_TOUCHING_DIGIT = Regex("""(?<=\p{L})(?=\p{Nd})|(?<=\p{Nd})(?=\p{L})""")
+    private const val NO_BREAK_SPACE = "\u00A0"
 }

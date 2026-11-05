@@ -1,51 +1,47 @@
 package dev.ledgerforge.wallet.ui
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
-import dev.ledgerforge.wallet.R
-import dev.ledgerforge.wallet.core.designsystem.theme.ForgeTheme
+import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
+import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.runtime.rememberNavBackStack
+import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
+import androidx.navigation3.ui.NavDisplay
+import dev.ledgerforge.wallet.feature.home.HomeScreen
+import dev.ledgerforge.wallet.feature.send.SendScreen
+import kotlinx.serialization.Serializable
 
-/** App root. Navigation 3 and the feature screens replace this placeholder in the payment slice. */
+@Serializable
+private data object HomeRoute : NavKey
+
+@Serializable
+private data object SendRoute : NavKey
+
+/** App root. The back stack is a plain list this composable owns, and features never see it. */
 @Composable
 fun ForgeWalletApp(modifier: Modifier = Modifier) {
-    Scaffold(modifier = modifier.fillMaxSize()) { innerPadding ->
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .padding(ForgeTheme.spacing.lg),
-            verticalArrangement = Arrangement.spacedBy(ForgeTheme.spacing.sm, Alignment.CenterVertically),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(
-                text = stringResource(R.string.app_name),
-                style = MaterialTheme.typography.headlineMedium,
-            )
-            Text(
-                text = stringResource(R.string.home_placeholder),
-                style = MaterialTheme.typography.bodyMedium,
-                textAlign = TextAlign.Center,
-            )
-        }
-    }
-}
-
-@Preview
-@Composable
-private fun ForgeWalletAppPreview() {
-    ForgeTheme {
-        ForgeWalletApp()
-    }
+    val backStack = rememberNavBackStack(HomeRoute)
+    NavDisplay(
+        backStack = backStack,
+        modifier = modifier,
+        onBack = { backStack.removeLastOrNull() },
+        entryDecorators =
+            listOf(
+                rememberSaveableStateHolderNavEntryDecorator(),
+                rememberViewModelStoreNavEntryDecorator(),
+            ),
+        entryProvider =
+            entryProvider {
+                entry<HomeRoute> {
+                    HomeScreen(onSendClick = { backStack.add(SendRoute) })
+                }
+                entry<SendRoute> {
+                    SendScreen(
+                        onQueued = { backStack.removeLastOrNull() },
+                        onCancel = { backStack.removeLastOrNull() },
+                    )
+                }
+            },
+    )
 }
