@@ -43,16 +43,20 @@ process restarts. It checks that every transfer posts exactly once and in order 
 a retry never uses a new key, that no wallet can spend more than it has, and that no money is
 created or destroyed. The seed is fixed, so a failure can be replayed.
 
-To check that the tests can fail, these bugs were introduced on purpose at commit `c2e258a`, and
-each one failed tests. The counts predate the later fix for the double-counted debit:
+To check that the tests can fail, [`scripts/mutation_check.py`](../scripts/mutation_check.py)
+introduces these bugs one at a time. At commit `be55afb`, every one failed tests:
 
 | Bug introduced | Tests that failed |
 |---|---|
 | A new idempotency key on every attempt | 5 |
-| Giving up on a transient failure | 8 |
-| Never reconciling settled rows | 7 |
-| Pulling before pushing | 7 |
+| Giving up on a transient failure | 9 |
+| Never reconciling settled rows | 8 |
+| Pulling before pushing | 9 |
+| Pulling a wallet whose transfer has no answer | 2 |
 | `KEEP` instead of `APPEND_OR_REPLACE` during a run | 1 |
+| Treating any 4xx as a refusal, proxies included | 1 |
+| Removing the funds check when queueing | 2 |
+| Removing the double-tap guard | 2 |
 
 ## Not verified yet
 
