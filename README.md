@@ -8,6 +8,8 @@ exactly once, and Ledger Forge's statement proves it.
 > Next is the payment path: Room outbox → WorkManager → `POST /transfers`.
 > See the [plan review](docs/plan-review.md) for scope and order.
 
+> **Demo only:** synthetic money and test accounts against a local Ledger Forge. No real payments, cards or bank data.
+
 ## How "exactly once" works
 
 A send writes a pending statement line and an outbox row, holding the request and a UUID
@@ -44,3 +46,7 @@ You need JDK 21 or newer; Android Studio's bundled JDK works.
 **Stack:** Kotlin 2.4, AGP 9.5, Jetpack Compose with Material 3, Hilt, Room, WorkManager,
 Retrofit and OkHttp. Tests use JUnit 4, kotest-property, Robolectric and Turbine. ktlint,
 detekt and Kover match Ledger Forge.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
