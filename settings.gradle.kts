@@ -32,5 +32,12 @@ rootProject.name = "forge-wallet-android"
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 include(":app")
+include(":core:data")
+include(":core:database")
 include(":core:designsystem")
+include(":core:domain")
 include(":core:money")
+include(":core:network")
+include(":core:testing")
+include(":feature:home")
+include(":feature:send")
