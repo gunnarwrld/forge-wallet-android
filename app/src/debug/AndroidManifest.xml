@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Debug builds talk to a Ledger Forge on this machine. 10.0.2.2 is a private address, and
+         from API 37 an app needs this permission to reach one: without it, sockets time out with
+         no error saying why. Release builds talk to a public server and don't ask for it. -->
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
+
+</manifest>

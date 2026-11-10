@@ -18,7 +18,8 @@ class AndroidRoomConventionPlugin : Plugin<Project> {
             }
 
             dependencies {
-                add("implementation", libs.library("androidx-room-runtime"))
+                // api: consumers use the DAOs, and Hilt has to resolve RoomDatabase in the app module.
+                add("api", libs.library("androidx-room-runtime"))
                 add("ksp", libs.library("androidx-room-compiler"))
                 add("testImplementation", libs.library("androidx-room-testing"))
             }
