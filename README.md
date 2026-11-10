@@ -8,6 +8,8 @@ exactly once, and Ledger Forge's statement proves it.
 > full send flow, biometric step-up and the design system come next.
 > [What's been verified, and what hasn't](docs/verification.md).
 
+> **Demo only:** synthetic money and test accounts against a local Ledger Forge. No real payments, cards or bank data.
+
 ## How "exactly once" works
 
 ```mermaid
@@ -109,3 +111,7 @@ graph TD
 **Stack:** Kotlin 2.4, AGP 9.5, Jetpack Compose with Material 3, Navigation 3, Hilt, Room,
 WorkManager, Retrofit and OkHttp. Tests use JUnit 4, kotest-property, Robolectric, Turbine and
 MockWebServer. ktlint, detekt and Kover match Ledger Forge.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
