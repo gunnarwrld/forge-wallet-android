@@ -7,7 +7,10 @@ targetSdk = "37"
 # Build
 agp = "9.5.0"
 kotlin = "2.4.21"
-ksp = "2.3.13"
+# 2.3.13 drops @InstallIn modules when ksp tasks overlap in one daemon
+# (google/ksp#3286). That is what failed main: DatabaseModule's bindings
+# were never generated, so Hilt could not provide the Room DAOs.
+ksp = "2.3.12"
 
 # AndroidX
 activityCompose = "1.13.0"
