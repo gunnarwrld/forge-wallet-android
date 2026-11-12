@@ -53,6 +53,7 @@ open_app() {
     "$UI" wait "Activity" 30
 }
 
+# Sends $1 from Alice to Bob, then waits for the status it should show: Pending unless $2 says otherwise.
 send() {
     "$UI" tap "Send money"
     "$UI" wait "Amount" 10
@@ -60,10 +61,19 @@ send() {
     "$ADB" shell input text "$1"
     sleep 1
     "$UI" tap "Send"
-    "$UI" wait "Pending" 10
+    "$UI" wait "${2:-Pending}" 30
 }
 
 kill_nine() { "$ADB" shell "run-as $APP kill -9 $("$ADB" shell pidof "$APP")"; }
+
+keys() { sql "select count(*) from idempotency_records"; }
+
+# Moves money on Ledger Forge directly, behind the app's back.
+ledger_transfer() {
+    curl -s -o /dev/null -w '%{http_code}' -X POST "http://localhost:8080/api/v1/transfers" \
+        -H 'Content-Type: application/json' -H "Idempotency-Key: $(uuidgen)" \
+        -d "{\"sourceAccountId\":\"$1\",\"destinationAccountId\":\"$2\",\"amountMinor\":$3,\"currencyCode\":\"SEK\"}"
+}
 
 echo "== Setup"
 "$ADB" wait-for-device
@@ -113,7 +123,29 @@ open_app
 expect "exactly one transfer" "$((before + 1))" "$(transfers)"
 expect "balances moved once" "98250 26750" "$(balance "$ALICE") $(balance "$BOB")"
 
-echo "== 3. Committed, response lost, then process death"
+echo "== 3. Refused by Ledger Forge, then retried under a new key"
+before="$(transfers)"
+keys_before="$(keys)"
+drained="$(balance "$ALICE")"
+expect "drain Alice on the server, behind the app's back" "201" "$(ledger_transfer "$ALICE" "$BOB" "$drained")"
+send 4 "Failed"
+expect "Ledger Forge refused it with nothing posted" "$((before + 1))" "$(transfers)"
+expect "refund Alice on the server" "201" "$(ledger_transfer "$BOB" "$ALICE" "$drained")"
+# The app only learns about the refund on its next pull, so refresh as a user would after a top-up.
+"$UI" tap "Refresh"
+sleep 5
+"$UI" tap "See all"
+"$UI" wait "Retry" 10
+"$UI" tap "Retry"
+"$UI" gone "Failed" 60
+"$UI" gone "Pending" 120
+expect "the retry posted exactly once" "$((before + 3))" "$(transfers)"
+expect "the refused attempt left no key behind" "$((keys_before + 3))" "$(keys)"
+expect "balances moved once" "97850 27150" "$(balance "$ALICE") $(balance "$BOB")"
+"$ADB" shell input keyevent BACK
+"$UI" wait "Send money" 10
+
+echo "== 4. Committed, response lost, then process death"
 (cd "$REPO" && ./gradlew assembleDebug -PledgerBaseUrl=http://10.0.2.2:8081/ --console=plain -q)
 python3 "$REPO/scripts/lossy_proxy.py" "$ATTEMPTS_LOG" &
 PROXY_PID=$!
@@ -133,7 +165,7 @@ sleep 2
 open_app
 "$UI" gone "Pending" 120
 expect "still exactly one transfer" "$((before + 1))" "$(transfers)"
-expect "balances moved once" "97550 27450" "$(balance "$ALICE") $(balance "$BOB")"
+expect "balances moved once" "97150 27850" "$(balance "$ALICE") $(balance "$BOB")"
 expect "the debit shows once after the replay" "1" "$("$UI" debits 7.00)"
 python3 - "$ATTEMPTS_LOG" <<'PY'
 import json

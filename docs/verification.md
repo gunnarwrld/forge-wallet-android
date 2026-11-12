@@ -1,7 +1,7 @@
 # Verification
 
-Measured on 4 Nov 2026 at commit `21fce27`, on the Pixel 10 Pro emulator (Android 17, API 37)
-against `ledger-api` master at `7f4fc5f`, running in Docker. The checks read Ledger Forge's Postgres
+Measured on 12 Nov 2026 with the app at commit `ac2992d`, on the Pixel 10 Pro emulator (Android 17,
+API 37) against `ledger-api` master at `0a8daa9`, running in Docker. The checks read Ledger Forge's Postgres
 database, not the app. This is an emulator, not a physical device.
 
 ## End to end, against the real server
@@ -14,15 +14,16 @@ scripts/verify_exactly_once.sh /path/to/ledger-api
 
 | Scenario | How | Result |
 |---|---|---|
-| Offline send, then process death | Airplane mode on, send 12.50, home, `am kill`, airplane mode off. The app isn't reopened. | Nothing reached the ledger while offline. Android restarted the process and the transfer settled 5 s after reconnecting. 1 transfer, correct balances. |
+| Offline send, then process death | Airplane mode on, send 12.50, home, `am kill`, airplane mode off. The app isn't reopened. | Nothing reached the ledger while offline. Android restarted the process and the transfer settled 3 s after reconnecting. 1 transfer, correct balances. |
 | Process death with a request in flight | Freeze the container with `docker compose pause app`, send 5.00, `kill -9` the app, unfreeze. | 1 transfer, correct balances. |
+| Refused, then retried | Drain Alice on the server behind the app's back, send 4.00, refund Alice, refresh, tap Retry. | Ledger Forge answered 422 and posted nothing, and the refused attempt left no key behind. The retry posted once under a new key. Correct balances. |
 | Commit, then lost response, then process death | [`scripts/lossy_proxy.py`](../scripts/lossy_proxy.py) drops the first response after the ledger commits. Send 7.00, then `kill -9` the app while it waits to retry. | 1 transfer, correct balances, and the debit shows once throughout. See the log below. |
 
 The proxy's log for that last transfer:
 
 ```
-attempt 1  key=9c88acb7…  201  transferId=4538a014…  response dropped
-attempt 2  key=9c88acb7…  201  transferId=4538a014…  delivered
+attempt 1  key=8ea9712b…  201  transferId=4fa81e32…  response dropped
+attempt 2  key=8ea9712b…  201  transferId=4fa81e32…  delivered
 ```
 
 Same key and same body on both attempts, and the second returned the first one's `transferId`.
@@ -35,6 +36,10 @@ The unit tests had the first of these down as expected behaviour, and nothing ch
   balance short by that amount until the replay landed. Fixed by not pulling a wallet with an
   unanswered transfer. See [ADR 0001](adr/0001-exactly-once-payments.md).
 - **Currency codes ran into the digits** (`SEK968.50`), on the JDK and on Android.
+- **A retry after a top-up is refused until the app refreshes.** The app checks funds against the
+  balance it last pulled, so after money arrives behind its back it still sees the old balance.
+  That's the safe direction, but a user may not know to refresh. Refreshing automatically when the
+  local funds check refuses would fix it.
 
 ## Automated
 
@@ -44,18 +49,21 @@ a retry never uses a new key, that no wallet can spend more than it has, and tha
 created or destroyed. The seed is fixed, so a failure can be replayed.
 
 To check that the tests can fail, [`scripts/mutation_check.py`](../scripts/mutation_check.py)
-introduces these bugs one at a time. At commit `be55afb`, every one failed tests:
+introduces these bugs one at a time. With the app at commit `ac2992d`, every one failed tests:
 
 | Bug introduced | Tests that failed |
 |---|---|
 | A new idempotency key on every attempt | 5 |
 | Giving up on a transient failure | 9 |
-| Never reconciling settled rows | 8 |
+| Never reconciling settled rows | 9 |
 | Pulling before pushing | 9 |
 | Pulling a wallet whose transfer has no answer | 2 |
 | `KEEP` instead of `APPEND_OR_REPLACE` during a run | 1 |
 | Treating any 4xx as a refusal, proxies included | 1 |
-| Removing the funds check when queueing | 2 |
+| Removing the funds check when queueing | 3 |
+| Retrying a row that didn't fail | 2 |
+| Retrying without checking funds again | 1 |
+| Retrying under the refused key | 2 |
 | Removing the double-tap guard | 2 |
 
 ## Not verified yet
