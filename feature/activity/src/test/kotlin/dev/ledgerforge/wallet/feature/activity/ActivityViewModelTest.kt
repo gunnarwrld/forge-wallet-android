@@ -92,12 +92,13 @@ class ActivityViewModelTest {
             repository.retryResult = RetryResult.NothingToRetry
 
             viewModel.state.test {
-                awaitItem()
+                assertNull(awaitItem().message)
 
                 viewModel.onIntent(ActivityIntent.Retry("failed-1"))
 
-                assertNull(expectMostRecentItem().message)
+                expectNoEvents()
             }
+            assertEquals(listOf("failed-1"), repository.retried)
         }
 
     @Test

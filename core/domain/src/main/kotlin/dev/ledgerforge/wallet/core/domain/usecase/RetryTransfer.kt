@@ -12,5 +12,8 @@ class RetryTransfer
         private val repository: WalletRepository,
         private val sync: SyncRequester,
     ) {
-        suspend operator fun invoke(failedId: String): RetryResult = TODO()
+        suspend operator fun invoke(failedId: String): RetryResult =
+            repository.retryTransfer(failedId).also { result ->
+                if (result == RetryResult.Queued) sync.requestSync()
+            }
     }

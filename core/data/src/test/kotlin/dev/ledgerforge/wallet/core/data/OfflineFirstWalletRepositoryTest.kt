@@ -143,7 +143,11 @@ class OfflineFirstWalletRepositoryTest {
             val alice = harness.addWallet("alice", 1_000)
             harness.repository.queueTransfer(alice, AccountId("ghost"), Money(400, sek))
             harness.newSynchronizer().sync()
-            val failed = harness.repository.observeActivity().first().single { it.status is ActivityStatus.Failed }
+            val failed =
+                harness.repository
+                    .observeActivity()
+                    .first()
+                    .single { it.status is ActivityStatus.Failed }
             harness.ledger.addAccount("ghost", 0)
 
             assertEquals(RetryResult.Queued, harness.repository.retryTransfer(failed.id))
@@ -152,7 +156,12 @@ class OfflineFirstWalletRepositoryTest {
             val posted = harness.ledger.transfers.single()
             assertTrue(posted.idempotencyKey != failed.id, "a retry after a refusal needs a new key")
             assertEquals(400, posted.amountMinor)
-            assertTrue(harness.repository.observeActivity().first().none { it.status is ActivityStatus.Failed })
+            assertTrue(
+                harness.repository
+                    .observeActivity()
+                    .first()
+                    .none { it.status is ActivityStatus.Failed },
+            )
             assertEquals(Money(600, sek), harness.wallet(alice).availableBalance)
         }
 
@@ -162,7 +171,11 @@ class OfflineFirstWalletRepositoryTest {
             val alice = harness.addWallet("alice", 1_000)
             harness.repository.queueTransfer(alice, AccountId("ghost"), Money(400, sek))
             harness.newSynchronizer().sync()
-            val failed = harness.repository.observeActivity().first().single { it.status is ActivityStatus.Failed }
+            val failed =
+                harness.repository
+                    .observeActivity()
+                    .first()
+                    .single { it.status is ActivityStatus.Failed }
 
             assertEquals(RetryResult.Queued, harness.repository.retryTransfer(failed.id))
             assertEquals(RetryResult.NothingToRetry, harness.repository.retryTransfer(failed.id))
@@ -176,11 +189,20 @@ class OfflineFirstWalletRepositoryTest {
             val alice = harness.addWallet("alice", 1_000)
             harness.repository.queueTransfer(alice, AccountId("ghost"), Money(400, sek))
             harness.newSynchronizer().sync()
-            val failed = harness.repository.observeActivity().first().single { it.status is ActivityStatus.Failed }
+            val failed =
+                harness.repository
+                    .observeActivity()
+                    .first()
+                    .single { it.status is ActivityStatus.Failed }
 
             harness.repository.dismissTransfer(failed.id)
 
-            assertTrue(harness.repository.observeActivity().first().none { it.id == failed.id })
+            assertTrue(
+                harness.repository
+                    .observeActivity()
+                    .first()
+                    .none { it.id == failed.id },
+            )
             assertEquals(Money(1_000, sek), harness.wallet(alice).availableBalance)
             assertEquals(emptyList(), harness.ledger.transfers)
         }
