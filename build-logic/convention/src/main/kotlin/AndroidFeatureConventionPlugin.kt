@@ -5,8 +5,8 @@ import org.gradle.api.Project
 import org.gradle.kotlin.dsl.dependencies
 
 /**
- * A feature sees the domain and the design system, never `core:data`, another feature or
- * navigation. The app module wires features together and binds data to domain interfaces.
+ * A feature sees the domain, the design system and `core:ui`, never `core:data`, another
+ * feature or navigation. The app module wires features together and binds data to domain interfaces.
  */
 class AndroidFeatureConventionPlugin : Plugin<Project> {
     override fun apply(target: Project) {
@@ -18,6 +18,7 @@ class AndroidFeatureConventionPlugin : Plugin<Project> {
             dependencies {
                 add("implementation", project(":core:domain"))
                 add("implementation", project(":core:designsystem"))
+                add("implementation", project(":core:ui"))
                 add("implementation", libs.library("androidx-hilt-lifecycle-viewmodel-compose"))
                 add("implementation", libs.library("androidx-lifecycle-runtime-compose"))
                 add("implementation", libs.library("androidx-lifecycle-viewmodel-compose"))

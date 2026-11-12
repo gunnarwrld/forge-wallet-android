@@ -1,0 +1,8 @@
+<resources>
+    <string name="activity_pending">Pending</string>
+    <string name="activity_settled">Confirmed</string>
+    <string name="activity_failed_funds">Failed: not enough funds</string>
+    <string name="activity_failed_account">Failed: account not found</string>
+    <string name="activity_failed_rejected">Failed: refused by Ledger Forge</string>
+    <string name="activity_failed_conflict">Failed: internal error, nothing was sent</string>
+</resources>

@@ -40,6 +40,11 @@ fun AmountText(
     )
 }
 
+/** [money] as display text in the user's locale, for amounts that sit inside a sentence. */
+@Composable
+@ReadOnlyComposable
+fun formatAmount(money: Money): String = MoneyFormatter.format(money, currentLocale())
+
 @Composable
 @ReadOnlyComposable
 private fun currentLocale(): Locale = LocalConfiguration.current.locales[0]
