@@ -28,6 +28,15 @@ enum class OutboxStatus {
 
     /** Ledger Forge refused it, so no money moved. */
     FAILED,
+
+    /** A failed row the user dismissed or retried as a new row. Kept as history, never shown or sent. */
+    DISMISSED,
+}
+
+enum class RetryOutcome {
+    QUEUED,
+    INSUFFICIENT_FUNDS,
+    NOTHING_TO_RETRY,
 }
 
 /**

@@ -15,6 +15,15 @@ interface WalletRepository {
         amount: Money,
     ): QueueResult
 
+    /**
+     * Queues a refused transfer again, as a new intent under a new key, and dismisses the refused
+     * one. Ledger Forge refused the old key for good: after a 409 it would refuse it forever.
+     */
+    suspend fun retryTransfer(failedId: String): RetryResult
+
+    /** Hides a refused transfer from the activity list. No money moved, so nothing else changes. */
+    suspend fun dismissTransfer(failedId: String)
+
     /** Creates demo wallets on Ledger Forge. Returns false if they couldn't be created. */
     suspend fun createDemoWallets(): Boolean
 }
@@ -22,6 +31,14 @@ interface WalletRepository {
 enum class QueueResult {
     Queued,
     InsufficientFunds,
+}
+
+enum class RetryResult {
+    Queued,
+    InsufficientFunds,
+
+    /** It was already retried or dismissed, or it never failed. A double tap lands here. */
+    NothingToRetry,
 }
 
 interface SyncRequester {

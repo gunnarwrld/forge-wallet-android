@@ -6,6 +6,7 @@ import dev.ledgerforge.wallet.core.database.OutboxStatus
 import dev.ledgerforge.wallet.core.domain.model.AccountId
 import dev.ledgerforge.wallet.core.domain.model.ActivityStatus
 import dev.ledgerforge.wallet.core.domain.model.QueueResult
+import dev.ledgerforge.wallet.core.domain.model.RetryResult
 import dev.ledgerforge.wallet.core.domain.model.TransferFailure
 import dev.ledgerforge.wallet.core.money.CurrencyCode
 import dev.ledgerforge.wallet.core.money.Money
@@ -134,6 +135,54 @@ class OfflineFirstWalletRepositoryTest {
 
             assertEquals(AccountId("alice"), harness.wallet(alice).id)
             assertEquals("alice", harness.wallet(alice).name)
+        }
+
+    @Test
+    fun `retrying a refused transfer sends it under a new key`() =
+        runBlocking {
+            val alice = harness.addWallet("alice", 1_000)
+            harness.repository.queueTransfer(alice, AccountId("ghost"), Money(400, sek))
+            harness.newSynchronizer().sync()
+            val failed = harness.repository.observeActivity().first().single { it.status is ActivityStatus.Failed }
+            harness.ledger.addAccount("ghost", 0)
+
+            assertEquals(RetryResult.Queued, harness.repository.retryTransfer(failed.id))
+            harness.newSynchronizer().sync()
+
+            val posted = harness.ledger.transfers.single()
+            assertTrue(posted.idempotencyKey != failed.id, "a retry after a refusal needs a new key")
+            assertEquals(400, posted.amountMinor)
+            assertTrue(harness.repository.observeActivity().first().none { it.status is ActivityStatus.Failed })
+            assertEquals(Money(600, sek), harness.wallet(alice).availableBalance)
+        }
+
+    @Test
+    fun `retrying twice queues one transfer`() =
+        runBlocking {
+            val alice = harness.addWallet("alice", 1_000)
+            harness.repository.queueTransfer(alice, AccountId("ghost"), Money(400, sek))
+            harness.newSynchronizer().sync()
+            val failed = harness.repository.observeActivity().first().single { it.status is ActivityStatus.Failed }
+
+            assertEquals(RetryResult.Queued, harness.repository.retryTransfer(failed.id))
+            assertEquals(RetryResult.NothingToRetry, harness.repository.retryTransfer(failed.id))
+
+            assertEquals(Money(600, sek), harness.wallet(alice).availableBalance)
+        }
+
+    @Test
+    fun `dismissing a refused transfer removes it and moves no money`() =
+        runBlocking {
+            val alice = harness.addWallet("alice", 1_000)
+            harness.repository.queueTransfer(alice, AccountId("ghost"), Money(400, sek))
+            harness.newSynchronizer().sync()
+            val failed = harness.repository.observeActivity().first().single { it.status is ActivityStatus.Failed }
+
+            harness.repository.dismissTransfer(failed.id)
+
+            assertTrue(harness.repository.observeActivity().first().none { it.id == failed.id })
+            assertEquals(Money(1_000, sek), harness.wallet(alice).availableBalance)
+            assertEquals(emptyList(), harness.ledger.transfers)
         }
 
     private fun row(

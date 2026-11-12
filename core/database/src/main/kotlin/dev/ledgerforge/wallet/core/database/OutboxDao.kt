@@ -71,4 +71,19 @@ interface OutboxDao {
 
     @Query("SELECT * FROM outbox WHERE seq = :seq")
     suspend fun get(seq: Long): OutboxEntity?
+
+    suspend fun getByKey(key: String): OutboxEntity? = TODO()
+
+    /**
+     * Queues a failed row's request again as a new row under [newKey], and dismisses the failed
+     * row, in one transaction. Only a failed row can be retried, so a double tap retries once.
+     */
+    suspend fun retryFailed(
+        failedKey: String,
+        newKey: String,
+        createdAtEpochMs: Long,
+    ): RetryOutcome = TODO()
+
+    /** Dismisses [key] if it failed. Any other row is left alone. */
+    suspend fun dismissFailed(key: String): Unit = TODO()
 }

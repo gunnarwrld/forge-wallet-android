@@ -166,4 +166,70 @@ class OutboxDaoTest {
 
             assertFailsWith<SQLiteConstraintException> { outbox.enqueueIfFunded(transfer("k1")) }
         }
+
+    private suspend fun failedRow(
+        key: String = "failed",
+        amountMinor: Long = 400,
+    ) {
+        outbox.enqueueIfFunded(transfer(key, amountMinor = amountMinor))
+        outbox.markFailed(outbox.getByKey(key)!!.seq, httpStatus = 404, detail = "Account bob was not found")
+    }
+
+    @Test
+    fun `retrying a failed row queues its request again under a new key`() =
+        runTest {
+            failedRow(amountMinor = 400)
+
+            assertEquals(RetryOutcome.QUEUED, outbox.retryFailed("failed", newKey = "retry-1", createdAtEpochMs = 9_000))
+
+            val retry = outbox.getByKey("retry-1")!!
+            assertEquals(OutboxStatus.PENDING, retry.status)
+            assertEquals(
+                listOf<Any>("alice", "bob", 400L, "SEK", 9_000L),
+                listOf(retry.sourceAccountId, retry.destinationAccountId, retry.amountMinor, retry.currencyCode, retry.createdAtEpochMs),
+            )
+            assertNull(retry.transferId)
+            assertNull(retry.failureHttpStatus)
+            assertEquals(OutboxStatus.DISMISSED, outbox.getByKey("failed")?.status)
+            assertEquals(600, outbox.availableMinor("alice"))
+        }
+
+    @Test
+    fun `a retry the available balance no longer covers is refused and the failed row stays`() =
+        runTest {
+            failedRow(amountMinor = 400)
+            outbox.enqueueIfFunded(transfer("spent-meanwhile", amountMinor = 700))
+
+            assertEquals(RetryOutcome.INSUFFICIENT_FUNDS, outbox.retryFailed("failed", "retry-1", 9_000))
+
+            assertNull(outbox.getByKey("retry-1"))
+            assertEquals(OutboxStatus.FAILED, outbox.getByKey("failed")?.status)
+        }
+
+    @Test
+    fun `only a failed row can be retried, so a double tap retries once`() =
+        runTest {
+            failedRow()
+            outbox.enqueueIfFunded(transfer("pending"))
+
+            assertEquals(RetryOutcome.QUEUED, outbox.retryFailed("failed", "retry-1", 9_000))
+            assertEquals(RetryOutcome.NOTHING_TO_RETRY, outbox.retryFailed("failed", "retry-2", 9_001))
+            assertEquals(RetryOutcome.NOTHING_TO_RETRY, outbox.retryFailed("pending", "retry-3", 9_002))
+            assertEquals(RetryOutcome.NOTHING_TO_RETRY, outbox.retryFailed("missing", "retry-4", 9_003))
+
+            listOf("retry-2", "retry-3", "retry-4").forEach { assertNull(outbox.getByKey(it), it) }
+        }
+
+    @Test
+    fun `dismissing only touches a failed row`() =
+        runTest {
+            failedRow()
+            outbox.enqueueIfFunded(transfer("pending"))
+
+            outbox.dismissFailed("failed")
+            outbox.dismissFailed("pending")
+
+            assertEquals(OutboxStatus.DISMISSED, outbox.getByKey("failed")?.status)
+            assertEquals(OutboxStatus.PENDING, outbox.getByKey("pending")?.status)
+        }
 }

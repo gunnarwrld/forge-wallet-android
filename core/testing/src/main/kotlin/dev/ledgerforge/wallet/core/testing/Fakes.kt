@@ -3,6 +3,7 @@ package dev.ledgerforge.wallet.core.testing
 import dev.ledgerforge.wallet.core.domain.model.AccountId
 import dev.ledgerforge.wallet.core.domain.model.ActivityItem
 import dev.ledgerforge.wallet.core.domain.model.QueueResult
+import dev.ledgerforge.wallet.core.domain.model.RetryResult
 import dev.ledgerforge.wallet.core.domain.model.SyncRequester
 import dev.ledgerforge.wallet.core.domain.model.Wallet
 import dev.ledgerforge.wallet.core.domain.model.WalletRepository
@@ -26,6 +27,13 @@ class FakeWalletRepository : WalletRepository {
     /** Holds [queueTransfer] open until completed, to test what happens in the meantime. */
     var queueGate: CompletableDeferred<Unit>? = null
 
+    val retried = mutableListOf<String>()
+    val dismissed = mutableListOf<String>()
+    var retryResult = RetryResult.Queued
+
+    /** Holds [retryTransfer] open until completed, to test what happens in the meantime. */
+    var retryGate: CompletableDeferred<Unit>? = null
+
     var demoWalletsResult = true
     var demoWalletCalls = 0
 
@@ -44,6 +52,16 @@ class FakeWalletRepository : WalletRepository {
         queueGate?.await()
         if (nextQueueResult == QueueResult.Queued) queued += QueuedTransfer(source, destination, amount)
         return nextQueueResult
+    }
+
+    override suspend fun retryTransfer(failedId: String): RetryResult {
+        retried += failedId
+        retryGate?.await()
+        return retryResult
+    }
+
+    override suspend fun dismissTransfer(failedId: String) {
+        dismissed += failedId
     }
 
     override suspend fun createDemoWallets(): Boolean {
