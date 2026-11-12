@@ -7,14 +7,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -27,6 +27,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.ledgerforge.wallet.core.designsystem.component.AmountText
+import dev.ledgerforge.wallet.core.designsystem.component.PrimaryButton
+import dev.ledgerforge.wallet.core.designsystem.icon.ForgeIcons
 import dev.ledgerforge.wallet.core.designsystem.theme.ForgeTheme
 import dev.ledgerforge.wallet.core.domain.model.AccountId
 import dev.ledgerforge.wallet.core.domain.model.Wallet
@@ -62,8 +64,10 @@ private fun SendContent(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.send_title)) },
-                actions = {
-                    TextButton(onClick = onCancel) { Text(stringResource(R.string.send_cancel)) }
+                navigationIcon = {
+                    IconButton(onClick = onCancel) {
+                        Icon(ForgeIcons.Back, contentDescription = stringResource(R.string.send_back))
+                    }
                 },
             )
         },
@@ -101,13 +105,12 @@ private fun SendContent(
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             )
-            Button(
+            PrimaryButton(
+                text = stringResource(R.string.send_submit),
                 onClick = { onIntent(SendIntent.Submit) },
-                enabled = state.source != null && state.destination != null && !state.isSubmitting,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(stringResource(R.string.send_submit))
-            }
+                enabled = state.source != null && state.destination != null,
+                loading = state.isSubmitting,
+            )
             Text(
                 text = stringResource(R.string.send_works_offline),
                 style = MaterialTheme.typography.bodySmall,

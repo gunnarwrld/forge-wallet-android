@@ -1,0 +1,9 @@
+<resources>
+    <string name="activity_title">Activity</string>
+    <string name="activity_back">Back</string>
+    <string name="activity_empty">No activity yet. Transfers show up here as soon as you send them, before they reach Ledger Forge.</string>
+    <string name="activity_retry">Retry</string>
+    <string name="activity_dismiss">Dismiss</string>
+    <string name="activity_retry_queued">Queued again. It goes out as soon as you\'re online.</string>
+    <string name="activity_retry_needs_funds">Not enough available to send it again.</string>
+</resources>

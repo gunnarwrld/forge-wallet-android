@@ -5,7 +5,7 @@
     <string name="send_available">Available</string>
     <string name="send_amount">Amount</string>
     <string name="send_submit">Send</string>
-    <string name="send_cancel">Cancel</string>
+    <string name="send_back">Back</string>
     <string name="send_works_offline">Works offline. It goes out as soon as you\'re connected.</string>
     <string name="send_error_empty">Enter an amount.</string>
     <string name="send_error_invalid">Enter digits and at most one decimal separator.</string>
