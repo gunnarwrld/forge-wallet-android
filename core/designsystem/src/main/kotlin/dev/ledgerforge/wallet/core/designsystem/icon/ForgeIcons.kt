@@ -10,10 +10,17 @@ import androidx.compose.ui.unit.dp
 
 /** The app's few icons, drawn here rather than pulling in an icon library for one chevron. */
 object ForgeIcons {
+    /** Mirrored in right-to-left layouts, where the back button sits on the right. */
     val Back: ImageVector by lazy {
         ImageVector
-            .Builder(name = "Back", defaultWidth = 24.dp, defaultHeight = 24.dp, viewportWidth = 24f, viewportHeight = 24f)
-            .apply {
+            .Builder(
+                name = "Back",
+                defaultWidth = 24.dp,
+                defaultHeight = 24.dp,
+                viewportWidth = 24f,
+                viewportHeight = 24f,
+                autoMirror = true,
+            ).apply {
                 path(
                     stroke = SolidColor(Color.Black),
                     strokeLineWidth = 2f,
