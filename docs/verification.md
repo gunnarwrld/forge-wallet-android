@@ -1,7 +1,7 @@
 # Verification
 
-Measured on 12 Nov 2026 with the app at commit `ac2992d`, on the Pixel 10 Pro emulator (Android 17,
-API 37) against `ledger-api` master at `0a8daa9`, running in Docker. The checks read Ledger Forge's Postgres
+Measured on 12 Nov 2026 with the app at commit `619d586`, on the Pixel 10 Pro emulator (Android 17,
+API 37) against `ledger-api` master at `dbcad16`, running in Docker. The checks read Ledger Forge's Postgres
 database, not the app. This is an emulator, not a physical device.
 
 ## End to end, against the real server
@@ -49,7 +49,7 @@ a retry never uses a new key, that no wallet can spend more than it has, and tha
 created or destroyed. The seed is fixed, so a failure can be replayed.
 
 To check that the tests can fail, [`scripts/mutation_check.py`](../scripts/mutation_check.py)
-introduces these bugs one at a time. With the app at commit `ac2992d`, every one failed tests:
+introduces these bugs one at a time. With the app at commit `619d586`, every one failed tests:
 
 | Bug introduced | Tests that failed |
 |---|---|
