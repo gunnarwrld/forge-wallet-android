@@ -3,15 +3,10 @@
     <string name="home_refresh">Refresh</string>
     <string name="home_send">Send money</string>
     <string name="home_activity">Activity</string>
-    <string name="home_posted">Posted balance</string>
+    <string name="home_see_all">See all</string>
+    <string name="home_pending">%1$s pending</string>
+    <string name="home_no_activity">No activity yet.</string>
     <string name="home_no_wallets">No wallets yet. Demo wallets are created on Ledger Forge, so this step needs a connection.</string>
     <string name="home_create_demo_wallets">Create demo wallets</string>
-    <string name="home_creating_demo_wallets">Creating wallets…</string>
     <string name="home_create_failed">Couldn\'t reach Ledger Forge. Check that it\'s running, then try again.</string>
-    <string name="activity_pending">Pending</string>
-    <string name="activity_settled">Confirmed</string>
-    <string name="activity_failed_funds">Failed: not enough funds</string>
-    <string name="activity_failed_account">Failed: account not found</string>
-    <string name="activity_failed_rejected">Failed: refused by Ledger Forge</string>
-    <string name="activity_failed_conflict">Failed: internal error, nothing was sent</string>
 </resources>

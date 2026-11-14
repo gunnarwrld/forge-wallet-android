@@ -89,4 +89,15 @@ class ActivityDaoTest {
                 cancelAndIgnoreRemainingEvents()
             }
         }
+
+    @Test
+    fun `dismissed rows leave the activity list`() =
+        runTest {
+            outbox.enqueueIfFunded(transfer("k1"))
+            outbox.markFailed(outbox.nextPending()!!.seq, httpStatus = 422, detail = null)
+
+            outbox.dismissFailed("k1")
+
+            assertEquals(emptyList(), activity.observe().first())
+        }
 }

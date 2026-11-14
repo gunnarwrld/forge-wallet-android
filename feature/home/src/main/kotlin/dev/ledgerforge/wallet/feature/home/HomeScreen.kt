@@ -3,14 +3,10 @@ package dev.ledgerforge.wallet.feature.home
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.MaterialTheme
@@ -27,27 +23,39 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import dev.ledgerforge.wallet.core.designsystem.component.AmountText
+import dev.ledgerforge.wallet.core.designsystem.component.BalanceCard
+import dev.ledgerforge.wallet.core.designsystem.component.EmptyState
+import dev.ledgerforge.wallet.core.designsystem.component.PrimaryButton
+import dev.ledgerforge.wallet.core.designsystem.component.SectionHeader
+import dev.ledgerforge.wallet.core.designsystem.component.formatAmount
 import dev.ledgerforge.wallet.core.designsystem.theme.ForgeTheme
 import dev.ledgerforge.wallet.core.domain.model.AccountId
 import dev.ledgerforge.wallet.core.domain.model.ActivityItem
 import dev.ledgerforge.wallet.core.domain.model.ActivityStatus
-import dev.ledgerforge.wallet.core.domain.model.TransferFailure
 import dev.ledgerforge.wallet.core.domain.model.Wallet
 import dev.ledgerforge.wallet.core.money.CurrencyCode
 import dev.ledgerforge.wallet.core.money.Money
+import dev.ledgerforge.wallet.core.ui.ActivityItemRow
 import java.time.Instant
 
 private const val MIN_WALLETS_TO_SEND = 2
+private const val RECENT_ACTIVITY = 5
 
 @Composable
 fun HomeScreen(
     onSendClick: () -> Unit,
+    onSeeAllActivity: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    HomeContent(state = state, onIntent = viewModel::onIntent, onSendClick = onSendClick, modifier = modifier)
+    HomeContent(
+        state = state,
+        onIntent = viewModel::onIntent,
+        onSendClick = onSendClick,
+        onSeeAllActivity = onSeeAllActivity,
+        modifier = modifier,
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,6 +64,7 @@ private fun HomeContent(
     state: HomeUiState,
     onIntent: (HomeIntent) -> Unit,
     onSendClick: () -> Unit,
+    onSeeAllActivity: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
@@ -83,7 +92,7 @@ private fun HomeContent(
             if (state.wallets.isEmpty()) {
                 NoWallets(state.demoWallets, onCreate = { onIntent(HomeIntent.CreateDemoWallets) }, contentModifier)
             } else {
-                WalletsAndActivity(state, contentModifier)
+                WalletsAndActivity(state, onSeeAllActivity, contentModifier)
             }
         }
     }
@@ -95,30 +104,23 @@ private fun NoWallets(
     onCreate: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val spacing = ForgeTheme.spacing
-    Column(
-        modifier = modifier.fillMaxSize().padding(spacing.lg),
-        verticalArrangement = Arrangement.spacedBy(spacing.md, Alignment.CenterVertically),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(stringResource(R.string.home_no_wallets), textAlign = TextAlign.Center)
-        Button(onClick = onCreate, enabled = demoWallets != DemoWalletsState.Creating) {
-            val label =
-                if (demoWallets ==
-                    DemoWalletsState.Creating
-                ) {
-                    R.string.home_creating_demo_wallets
-                } else {
-                    R.string.home_create_demo_wallets
-                }
-            Text(stringResource(label))
-        }
-        if (demoWallets == DemoWalletsState.Failed) {
-            Text(
-                text = stringResource(R.string.home_create_failed),
-                color = MaterialTheme.colorScheme.error,
-                textAlign = TextAlign.Center,
+    EmptyState(message = stringResource(R.string.home_no_wallets), modifier = modifier) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(ForgeTheme.spacing.md),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            PrimaryButton(
+                text = stringResource(R.string.home_create_demo_wallets),
+                onClick = onCreate,
+                loading = demoWallets == DemoWalletsState.Creating,
             )
+            if (demoWallets == DemoWalletsState.Failed) {
+                Text(
+                    text = stringResource(R.string.home_create_failed),
+                    color = MaterialTheme.colorScheme.error,
+                    textAlign = TextAlign.Center,
+                )
+            }
         }
     }
 }
@@ -126,6 +128,7 @@ private fun NoWallets(
 @Composable
 private fun WalletsAndActivity(
     state: HomeUiState,
+    onSeeAllActivity: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val spacing = ForgeTheme.spacing
@@ -135,73 +138,36 @@ private fun WalletsAndActivity(
         contentPadding = PaddingValues(start = spacing.md, top = spacing.sm, end = spacing.md, bottom = spacing.xl * 3),
         verticalArrangement = Arrangement.spacedBy(spacing.sm),
     ) {
-        items(state.wallets, key = { it.id.value }) { wallet -> WalletCard(wallet) }
+        items(state.wallets, key = { it.id.value }) { wallet ->
+            BalanceCard(name = wallet.name, balance = wallet.availableBalance, supportingText = pendingText(wallet))
+        }
         item {
-            Text(
-                text = stringResource(R.string.home_activity),
-                style = MaterialTheme.typography.titleMedium,
+            SectionHeader(
+                title = stringResource(R.string.home_activity),
                 modifier = Modifier.padding(top = spacing.md),
+                actionLabel = if (state.activity.isNotEmpty()) stringResource(R.string.home_see_all) else null,
+                onAction = onSeeAllActivity,
             )
         }
-        items(state.activity, key = { it.id }) { item -> ActivityRow(item) }
-    }
-}
-
-@Composable
-private fun WalletCard(wallet: Wallet) {
-    val spacing = ForgeTheme.spacing
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(spacing.md), verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
-            Text(wallet.name, style = MaterialTheme.typography.titleMedium)
-            AmountText(wallet.availableBalance, style = MaterialTheme.typography.headlineMedium)
-            if (wallet.availableBalance != wallet.postedBalance) {
-                Row(horizontalArrangement = Arrangement.spacedBy(spacing.xs)) {
-                    Text(stringResource(R.string.home_posted), style = MaterialTheme.typography.bodySmall)
-                    AmountText(wallet.postedBalance, style = MaterialTheme.typography.bodySmall)
-                }
+        if (state.activity.isEmpty()) {
+            item {
+                Text(
+                    text = stringResource(R.string.home_no_activity),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
+        items(state.activity.take(RECENT_ACTIVITY), key = { it.id }) { item -> ActivityItemRow(item) }
     }
 }
 
+/** The posted balance minus what's spendable is money on its way out. */
 @Composable
-private fun ActivityRow(item: ActivityItem) {
-    val spacing = ForgeTheme.spacing
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = spacing.xs),
-        horizontalArrangement = Arrangement.spacedBy(spacing.md),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(item.accountName, style = MaterialTheme.typography.bodyLarge)
-            StatusLabel(item.status)
-        }
-        AmountText(item.amount, style = MaterialTheme.typography.bodyLarge)
-    }
+private fun pendingText(wallet: Wallet): String? {
+    val pending = wallet.postedBalance - wallet.availableBalance
+    return if (pending.isPositive) stringResource(R.string.home_pending, formatAmount(pending)) else null
 }
-
-@Composable
-private fun StatusLabel(status: ActivityStatus) {
-    val label =
-        when (status) {
-            ActivityStatus.Pending -> R.string.activity_pending
-            ActivityStatus.Settled -> R.string.activity_settled
-            ActivityStatus.Posted -> null
-            is ActivityStatus.Failed -> status.reason.label()
-        }
-    if (label != null) {
-        val color = if (status is ActivityStatus.Failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
-        Text(stringResource(label), style = MaterialTheme.typography.bodySmall, color = color)
-    }
-}
-
-private fun TransferFailure.label(): Int =
-    when (this) {
-        TransferFailure.InsufficientFunds -> R.string.activity_failed_funds
-        TransferFailure.AccountNotFound -> R.string.activity_failed_account
-        TransferFailure.Rejected -> R.string.activity_failed_rejected
-        TransferFailure.Conflict -> R.string.activity_failed_conflict
-    }
 
 @Preview
 @Composable
@@ -220,11 +186,12 @@ private fun HomeContentPreview() {
                     activity =
                         listOf(
                             ActivityItem("1", "Alice", Money(-1_250, sek), Instant.EPOCH, ActivityStatus.Pending),
-                            ActivityItem("2", "Alice", Money(100_000, sek), Instant.EPOCH, ActivityStatus.Posted),
+                            ActivityItem("2", "Bob", Money(700, sek), Instant.EPOCH, ActivityStatus.Posted),
                         ),
                 ),
             onIntent = {},
             onSendClick = {},
+            onSeeAllActivity = {},
         )
     }
 }

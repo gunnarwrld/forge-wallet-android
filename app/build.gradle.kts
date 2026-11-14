@@ -47,6 +47,7 @@ dependencies {
     implementation(projects.core.designsystem)
     implementation(projects.core.domain)
     implementation(projects.core.network)
+    implementation(projects.feature.activity)
     implementation(projects.feature.home)
     implementation(projects.feature.send)
     ksp(libs.androidx.hilt.compiler)

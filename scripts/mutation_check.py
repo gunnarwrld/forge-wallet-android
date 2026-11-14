@@ -12,6 +12,8 @@ REQ = "core/data/src/main/kotlin/dev/ledgerforge/wallet/core/data/WorkManagerSyn
 SEND = "feature/send/src/main/kotlin/dev/ledgerforge/wallet/feature/send/SendViewModel.kt"
 OUTBOX = "core/database/src/main/kotlin/dev/ledgerforge/wallet/core/database/OutboxDao.kt"
 CLIENT = "core/network/src/main/kotlin/dev/ledgerforge/wallet/core/network/LedgerClient.kt"
+REPO = "core/data/src/main/kotlin/dev/ledgerforge/wallet/core/data/OfflineFirstWalletRepository.kt"
+DB = ":core:database:testDebugUnitTest"
 DATA = ":core:data:testDebugUnitTest"
 
 MUTATIONS = [
@@ -38,7 +40,16 @@ MUTATIONS = [
      "response.code() in REFUSALS", [":core:network:test"]),
     ("Removing the funds check when queueing", OUTBOX,
      "if (available < row.amountMinor) return false\n",
-     "\n", [":core:database:testDebugUnitTest", DATA]),
+     "\n", [DB, DATA]),
+    ("Retrying a row that didn't fail", OUTBOX,
+     "if (failed == null || failed.status != OutboxStatus.FAILED) return RetryOutcome.NOTHING_TO_RETRY",
+     "if (failed == null) return RetryOutcome.NOTHING_TO_RETRY", [DB, DATA]),
+    ("Retrying without checking funds again", OUTBOX,
+     "if (!enqueueIfFunded(retry)) return RetryOutcome.INSUFFICIENT_FUNDS",
+     "insert(retry)", [DB, DATA]),
+    ("Retrying under the refused key", REPO,
+     "newKey = UUID.randomUUID().toString()",
+     "newKey = failedId", [DATA]),
     ("Removing the double-tap guard", SEND,
      "if (form.value.isSubmitting) return\n",
      "\n", [":feature:send:testDebugUnitTest"]),
@@ -47,7 +58,7 @@ MUTATIONS = [
 RESULT_DIRS = {
     DATA: "core/data/build/test-results/testDebugUnitTest",
     ":core:network:test": "core/network/build/test-results/test",
-    ":core:database:testDebugUnitTest": "core/database/build/test-results/testDebugUnitTest",
+    DB: "core/database/build/test-results/testDebugUnitTest",
     ":feature:send:testDebugUnitTest": "feature/send/build/test-results/testDebugUnitTest",
 }
 

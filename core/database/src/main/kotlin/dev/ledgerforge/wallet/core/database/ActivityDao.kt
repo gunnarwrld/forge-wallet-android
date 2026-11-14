@@ -16,7 +16,7 @@ interface ActivityDao {
                o.currency_code AS currency_code, o.created_at_epoch_ms AS at_epoch_ms,
                o.status AS status, o.failure_http_status AS failure_http_status
           FROM outbox o JOIN accounts a ON a.id = o.source_account_id
-         WHERE o.status != 'RECONCILED'
+         WHERE o.status NOT IN ('RECONCILED', 'DISMISSED')
         UNION ALL
         SELECT l.account_id || ':' || l.journal_entry_id, a.name, l.signed_amount_minor,
                l.currency_code, l.posted_at_epoch_ms, 'POSTED', NULL

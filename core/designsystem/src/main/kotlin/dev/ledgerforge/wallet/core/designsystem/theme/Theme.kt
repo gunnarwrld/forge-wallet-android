@@ -15,9 +15,13 @@ fun ForgeTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit,
 ) {
-    CompositionLocalProvider(LocalSpacing provides Spacing()) {
+    CompositionLocalProvider(
+        LocalSpacing provides Spacing(),
+        LocalAmountTypography provides AmountTypography(),
+    ) {
         MaterialTheme(
             colorScheme = if (darkTheme) darkColors else lightColors,
+            shapes = forgeShapes,
             content = content,
         )
     }
@@ -29,4 +33,9 @@ object ForgeTheme {
         @Composable
         @ReadOnlyComposable
         get() = LocalSpacing.current
+
+    val amounts: AmountTypography
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalAmountTypography.current
 }

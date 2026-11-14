@@ -4,8 +4,9 @@ An offline-first Android wallet built on [Ledger Forge](https://github.com/gunna
 Turn on airplane mode, send money, kill the app and go back online: the transfer settles
 exactly once, and Ledger Forge's statement proves it.
 
-> **Status:** the payment path works end to end against the real server, with minimal UI. The
-> full send flow, biometric step-up and the design system come next.
+> **Status:** the payment path works end to end against the real server, refused transfers can be
+> retried or dismissed, and the screens use design system v1. The review step, biometric step-up
+> and a demo GIF come next.
 > [What's been verified, and what hasn't](docs/verification.md).
 
 > **Demo only:** synthetic money and test accounts against a local Ledger Forge. No real payments, cards or bank data.
@@ -75,11 +76,13 @@ for you, including a response lost after the ledger commits, and checks the resu
 graph TD
     app --> home["feature:home"]
     app --> send["feature:send"]
+    app --> activity["feature:activity"]
     app --> data["core:data"]
-    home --> domain["core:domain"]
-    home --> ds["core:designsystem"]
-    send --> domain
-    send --> ds
+    home --> ui["core:ui"]
+    send --> ui
+    activity --> ui
+    ui --> domain["core:domain"]
+    ui --> ds["core:designsystem"]
     data --> domain
     data --> database["core:database"]
     data --> network["core:network"]
@@ -90,13 +93,14 @@ graph TD
 | Module | Contents |
 |---|---|
 | `app` | Hilt root, Navigation 3 back stack, WorkManager setup |
-| `feature:home`, `feature:send` | Screens and ViewModels. They only see `core:domain` and the design system. |
+| `feature:home`, `feature:send`, `feature:activity` | Screens and ViewModels. They see `core:domain`, the design system and `core:ui`, never each other. |
+| `core:ui` | How a transfer and its status look, shared by the features |
 | `core:domain` | Models, repository interfaces, the `SendMoney` use case. Pure Kotlin. |
 | `core:data` | The sync worker, the outbox rules and the repository |
 | `core:database` | Room: accounts, outbox, statement lines |
 | `core:network` | Retrofit client and the rules for reading Ledger Forge's responses. Pure Kotlin. |
 | `core:money` | `Money` in `Long` minor units, ISO 4217 exponents, exact parsing, locale formatting. Pure Kotlin. |
-| `core:designsystem` | Theme, spacing tokens, `AmountText` with tabular figures |
+| `core:designsystem` | Theme, shapes, spacing and amount type, `AmountText` with tabular figures, `BalanceCard`, `PrimaryButton`, `TransactionRow`, `SectionHeader`, `EmptyState` |
 | `core:testing` | `FakeLedger`, a fault-injecting Ledger Forge, plus shared fakes |
 | `build-logic` | Convention plugins for AGP 9.5 (built-in Kotlin) |
 

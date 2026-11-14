@@ -71,4 +71,37 @@ interface OutboxDao {
 
     @Query("SELECT * FROM outbox WHERE seq = :seq")
     suspend fun get(seq: Long): OutboxEntity?
+
+    @Query("SELECT * FROM outbox WHERE idempotency_key = :key")
+    suspend fun getByKey(key: String): OutboxEntity?
+
+    /**
+     * Queues a failed row's request again as a new row under [newKey], and dismisses the failed
+     * row, in one transaction. Only a failed row can be retried, so a double tap retries once.
+     */
+    @Transaction
+    suspend fun retryFailed(
+        failedKey: String,
+        newKey: String,
+        createdAtEpochMs: Long,
+    ): RetryOutcome {
+        val failed = getByKey(failedKey)
+        if (failed == null || failed.status != OutboxStatus.FAILED) return RetryOutcome.NOTHING_TO_RETRY
+        val retry =
+            OutboxEntity(
+                idempotencyKey = newKey,
+                sourceAccountId = failed.sourceAccountId,
+                destinationAccountId = failed.destinationAccountId,
+                amountMinor = failed.amountMinor,
+                currencyCode = failed.currencyCode,
+                createdAtEpochMs = createdAtEpochMs,
+            )
+        if (!enqueueIfFunded(retry)) return RetryOutcome.INSUFFICIENT_FUNDS
+        dismissFailed(failedKey)
+        return RetryOutcome.QUEUED
+    }
+
+    /** Dismisses [key] if it failed. Any other row is left alone. */
+    @Query("UPDATE outbox SET status = 'DISMISSED' WHERE idempotency_key = :key AND status = 'FAILED'")
+    suspend fun dismissFailed(key: String)
 }

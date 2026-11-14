@@ -7,11 +7,13 @@ import dev.ledgerforge.wallet.core.database.ActivityRow
 import dev.ledgerforge.wallet.core.database.OutboxDao
 import dev.ledgerforge.wallet.core.database.OutboxEntity
 import dev.ledgerforge.wallet.core.database.OutboxStatus
+import dev.ledgerforge.wallet.core.database.RetryOutcome
 import dev.ledgerforge.wallet.core.database.WalletRow
 import dev.ledgerforge.wallet.core.domain.model.AccountId
 import dev.ledgerforge.wallet.core.domain.model.ActivityItem
 import dev.ledgerforge.wallet.core.domain.model.ActivityStatus
 import dev.ledgerforge.wallet.core.domain.model.QueueResult
+import dev.ledgerforge.wallet.core.domain.model.RetryResult
 import dev.ledgerforge.wallet.core.domain.model.TransferFailure
 import dev.ledgerforge.wallet.core.domain.model.Wallet
 import dev.ledgerforge.wallet.core.domain.model.WalletRepository
@@ -59,6 +61,15 @@ class OfflineFirstWalletRepository
                 )
             return if (outbox.enqueueIfFunded(row)) QueueResult.Queued else QueueResult.InsufficientFunds
         }
+
+        override suspend fun retryTransfer(failedId: String): RetryResult =
+            when (outbox.retryFailed(failedId, newKey = UUID.randomUUID().toString(), createdAtEpochMs = clock.millis())) {
+                RetryOutcome.QUEUED -> RetryResult.Queued
+                RetryOutcome.INSUFFICIENT_FUNDS -> RetryResult.InsufficientFunds
+                RetryOutcome.NOTHING_TO_RETRY -> RetryResult.NothingToRetry
+            }
+
+        override suspend fun dismissTransfer(failedId: String) = outbox.dismissFailed(failedId)
 
         override suspend fun createDemoWallets(): Boolean {
             val alice = ledger.createAccount("Alice", DEMO_CURRENCY, ALICE_OPENING_MINOR) ?: return false
